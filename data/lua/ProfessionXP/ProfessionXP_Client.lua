@@ -21,7 +21,9 @@
 
     Under the recipe's description, above its reagents: what crafting it pays
     (experience, or Spherite at the maximum level) and the first-time bonus.
-    A line the player will not get is grayed, with the reason under it.
+    A line the player will not get is grayed, with the reason under it --
+    except when the recipe is too easy (gray): that line is not shown at all.
+    When nothing at all would be paid, the whole block is hidden.
 
     Two windows: the game's own (TradeSkillFrame) and ForeverUI's, which keeps
     TradeSkillFrame as its host and draws its own recipe card. From ForeverUI
@@ -46,7 +48,9 @@ end
 
 local PREFIX = "ProfXP"
 
--- The texts, by their number in module_string.
+-- The texts, by their number in module_string. The reasons that mean "nothing
+-- at all is paid" (110, 112 to 115, 117) are no longer shown: the block is
+-- hidden instead. Their rows stay, ids are never reused.
 local ID = {
     title = 101, crafting = 102, first = 103, xp = 104, spherite = 105, capped = 106,
     gray = 110, rank_cap = 111, no_max_level = 112, spherite_off = 113, crafting_off = 114,
@@ -180,7 +184,7 @@ local function Compute(id)
     local s = settings
     local xpMode = UnitLevel("player") < s.maxLevel
 
-    -- WHAT BLOCKS EVERYTHING, shown once under the last line.
+    -- WHAT BLOCKS EVERYTHING: nothing can be paid.
     local blocked
     if not s.enabled then
         blocked = ID.crafting_off
@@ -197,56 +201,64 @@ local function Compute(id)
         return Text(ID.spherite, Boosted(spherite))
     end
 
+    -- NOTHING AT ALL IS PAID: the whole block stays hidden.
+    if blocked then return nil end
+
     local lines = {}
-    local paidPercent = 0
+    local paidPercent, paid = 0, false
 
-    -- The colour of the recipe.
-    local colorPercent = s.xp[color] * s.rate * s.multiplier
-    local colorSpherite = floor(s.sph[color] * s.rate + 0.5)
-    local reason
-    if color == 0 then
-        reason = ID.gray
-    elseif not s.rewardAtRankCap then
-        local _, rank, maxRank = GetTradeSkillLine()
-        if rank and maxRank and rank >= maxRank and rank < s.maxSkill then
-            reason = ID.rank_cap
+    -- The colour of the recipe. A gray recipe is too easy to pay anything:
+    -- its line is not shown at all, rather than grayed.
+    if color > 0 then
+        local colorPercent = s.xp[color] * s.rate * s.multiplier
+        local colorSpherite = floor(s.sph[color] * s.rate + 0.5)
+        local reason
+        if not s.rewardAtRankCap then
+            local _, rank, maxRank = GetTradeSkillLine()
+            if rank and maxRank and rank >= maxRank and rank < s.maxSkill then
+                reason = ID.rank_cap
+            end
         end
-    end
-    if not reason and not blocked then paidPercent = paidPercent + colorPercent end
-    local tint = (TradeSkillTypeColor and TradeSkillTypeColor[skillType]) or RECIPE_COLOR[skillType]
-    lines[#lines + 1] = {
-        Text(ID.crafting, amount(colorPercent, colorSpherite)),
-        (reason or blocked) and GRAY or { tint.r or tint[1], tint.g or tint[2], tint.b or tint[3] },
-        reason and Text(reason),
-    }
-
-    -- The first time.
-    local key = RecipeKey(id)
-    if key then
-        local firstPercent = s.xpFirst * s.multiplier
-        reason = nil
-        if not s.firstTime then
-            reason = ID.first_off
-        elseif done[key] then
-            reason = ID.already
-        elseif color == 0 and not s.firstOnGray then
-            reason = ID.gray_first
+        if not reason then
+            paidPercent = paidPercent + colorPercent
+            paid = true
         end
-        if not reason and not blocked then paidPercent = paidPercent + firstPercent end
+        local tint = (TradeSkillTypeColor and TradeSkillTypeColor[skillType]) or RECIPE_COLOR[skillType]
         lines[#lines + 1] = {
-            Text(ID.first, amount(firstPercent, s.sphFirst)),
-            (reason or blocked) and GRAY or FIRST_TIME,
+            Text(ID.crafting, amount(colorPercent, colorSpherite)),
+            reason and GRAY or { tint.r or tint[1], tint.g or tint[2], tint.b or tint[3] },
             reason and Text(reason),
         }
     end
 
-    -- One reward is capped (experience only).
-    if xpMode and not blocked and paidPercent > s.cap then
-        lines[#lines + 1] = { Text(ID.capped, Text(ID.xp, XpOf(s.cap))), GRAY }
+    -- The first time. On a gray recipe (unless the server pays it there) the
+    -- craft is too easy again: hidden, not grayed.
+    local key = RecipeKey(id)
+    if key and (color > 0 or s.firstOnGray) then
+        local firstPercent = s.xpFirst * s.multiplier
+        local reason
+        if not s.firstTime then
+            reason = ID.first_off
+        elseif done[key] then
+            reason = ID.already
+        end
+        if not reason then
+            paidPercent = paidPercent + firstPercent
+            paid = true
+        end
+        lines[#lines + 1] = {
+            Text(ID.first, amount(firstPercent, s.sphFirst)),
+            reason and GRAY or FIRST_TIME,
+            reason and Text(reason),
+        }
     end
 
-    if blocked then
-        lines[#lines + 1] = { nil, nil, Text(blocked) }
+    -- No line pays anything: the whole block stays hidden too.
+    if not paid then return nil end
+
+    -- One reward is capped (experience only).
+    if xpMode and paidPercent > s.cap then
+        lines[#lines + 1] = { Text(ID.capped, Text(ID.xp, XpOf(s.cap))), GRAY }
     end
     return lines
 end
@@ -336,6 +348,12 @@ local function RenderStock(id)
         TradeSkillReagentLabel:SetPoint("TOPLEFT", stock.frame, "BOTTOMLEFT", 0, -10)
         TradeSkillDetailScrollChildFrame:SetHeight(STOCK_CHILD_HEIGHT + height + 10)
     else
+        -- Back where TradeSkillFrame_SetSelection puts the label.
+        if GetTradeSkillDescription(id) then
+            TradeSkillReagentLabel:SetPoint("TOPLEFT", TradeSkillDescription, "BOTTOMLEFT", 0, -10)
+        else
+            TradeSkillReagentLabel:SetPoint("TOPLEFT", TradeSkillDescription, "TOPLEFT", 0, 0)
+        end
         TradeSkillDetailScrollChildFrame:SetHeight(STOCK_CHILD_HEIGHT)
     end
     if TradeSkillDetailScrollFrame then TradeSkillDetailScrollFrame:UpdateScrollChildRect() end
@@ -353,7 +371,10 @@ local function RenderForever()
     forever = forever or NewBlock(F.content, 305, _G.ForeverUIFontHighlightSmall2 or GameFontHighlightSmall)
     local height = P.selected and forever.Render(P.selected) or 0
     if height <= 0 then
+        -- Back where ForeverUI puts its reagents (N.reagents).
         forever.frame:Hide()
+        h.reagents:ClearAllPoints()
+        h.reagents:SetPoint("TOPLEFT", F.description, "BOTTOMLEFT", 0, -20)
         return
     end
     forever.frame:ClearAllPoints()

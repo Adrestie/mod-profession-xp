@@ -82,11 +82,18 @@ Under the selected recipe's description, above its reagents:
 * **First time: +N XP**, in green while the bonus is still to be earned;
 * **At most N per craft** when the capped total is lower than the sum.
 
-A line the player will not get is gray, with the reason under it: gray recipe,
-skill at the cap of its rank, already made, gray recipe with no first-time
-bonus, first-time bonuses off, crafting rewards off, experience gain turned off
-for the character, nothing at the maximum level (built without mod-spheregrid),
-Spherite off. Nothing is shown for a profession linked by another player.
+A line the player will not get is gray, with the reason under it: skill at the
+cap of its rank, already made, first-time bonuses off.
+
+Some lines are hidden rather than grayed:
+
+* a recipe too easy to pay (gray) shows no crafting line, and no first-time
+  line unless `ProfessionXP.FirstTime.Gray = 1`;
+* when nothing at all would be paid, the whole **Profession reward** block is
+  hidden: a gray recipe, a skill at its rank cap on a recipe already made,
+  crafting rewards off, experience gain turned off for the character, nothing
+  at the maximum level (built without mod-spheregrid, or Spherite off);
+* nothing is shown for a profession linked by another player.
 
 The texts come from `module_string` (ids 101 to 118) in the client's language:
 English, French, German, Spanish (both) and Russian, English for the others.
@@ -186,24 +193,21 @@ Test each step in the game's own window, then again with ForeverUI installed.
     `First time: +N XP` in green. N matches what crafting it actually gives
     (3% and 10% of the level by default).
 21. **Colours:** a yellow recipe shows yellow, a green one green. A gray recipe
-    shows `Crafting: 0 XP` grayed with `Gray recipes earn nothing.`, and a
-    grayed first-time line with `A gray recipe earns no first-time bonus.`.
+    shows no reward block at all, made or not.
 22. **After a first craft:** craft the orange recipe. Without closing the
     window, its first-time line turns gray with `Already made: …`.
-23. **Rank cap:** at 75/75 before training, a yellow recipe shows its crafting
-    line grayed with the rank cap reason; the first-time line stays green.
+23. **Rank cap:** at 75/75 before training, a yellow recipe never made shows
+    its crafting line grayed with the rank cap reason, and the first-time line
+    in green. Once made, the block is hidden.
 24. **Cap:** with `ProfessionXP.Xp.Multiplier = 5` and `.reload config`, reopen
     the window: `At most N XP per craft.` appears under an orange first time.
-25. **Switches:** `ProfessionXP.Crafting.Enable = 0`: both lines grayed, with
-    `Crafting rewards are turned off on this server.`.
+25. **Switches:** `ProfessionXP.Crafting.Enable = 0`: no block.
     `ProfessionXP.FirstTime.Enable = 0`: the first-time line grayed with its
-    reason.
-26. **Experience locked:** with experience gain turned off, both lines are
-    grayed, with the reason.
+    reason under a paid crafting line.
+26. **Experience locked:** with experience gain turned off, no block.
 27. **Maximum level:** on a level 80 character with mod-spheregrid, amounts
     read `N Spherite`, boosted by the account's prisms. Without mod-spheregrid,
-    lines are grayed with `Nothing is earned at the maximum level on this
-    server.`.
+    no block.
 28. **Language:** on a French client, every line and reason is in French.
 29. **Layout:** reagents stay below the block and the stock window can still
     scroll down to the last reagent. In ForeverUI, the block sits between the
