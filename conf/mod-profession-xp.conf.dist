@@ -1,0 +1,122 @@
+#
+# mod-profession-xp — configuration
+#
+# Crafting and gathering earn experience, by the colour the game gives the
+# action: orange, yellow, green; gray earns nothing. The first time a character
+# ever makes or gathers an item adds a large bonus. At the maximum level the
+# reward is Spherite instead, when the server was built with mod-spheregrid.
+#
+# Every value below is also the built-in default, so a setting left out changes
+# nothing. Reloaded by `.reload config`.
+#
+# Copy this file to your configs/modules directory and drop the .dist extension.
+#
+
+[worldserver]
+
+###############################################################################
+#
+#    SWITCHES
+#
+#    ProfessionXP.Enable
+#        The whole module. 0 = no reward, and nothing recorded as "done".
+#
+#    ProfessionXP.Crafting.Enable
+#        Every recipe of a profession, primary or secondary (cooking, first
+#        aid), smelting included; an enchantment applied to gear counts as a
+#        craft. Disenchanting, prospecting and milling do not count.
+#
+#    ProfessionXP.Gathering.Enable
+#        Mining, herbalism and skinning (creatures skinned with mining or
+#        herbalism included).
+#
+#    ProfessionXP.Fishing.Enable
+#        Every fish caught. A fish that gets away earns nothing.
+#
+
+ProfessionXP.Enable             = 1
+ProfessionXP.Crafting.Enable    = 1
+ProfessionXP.Gathering.Enable   = 1
+ProfessionXP.Fishing.Enable     = 1
+
+###############################################################################
+#
+#    RATES PER ACTIVITY
+#
+#    Multiply the colour reward of each activity, experience and Spherite alike.
+#    The first-time bonus is not affected. Fishing is the fastest of the four
+#    and starts at half.
+#
+
+ProfessionXP.Crafting.Rate      = 1.0
+ProfessionXP.Gathering.Rate     = 1.0
+ProfessionXP.Fishing.Rate       = 0.5
+
+###############################################################################
+#
+#    ProfessionXP.RewardAtRankCap
+#        A skill at the cap of its rank (150/150 before the Expert trainer, for
+#        instance) learns nothing more, and one yellow recipe could then be
+#        crafted forever for the same reward.
+#        0 = no colour reward at a rank cap (the last rank, 450, still earns).
+#        1 = the colour alone decides.
+#        The first-time bonus is paid in both cases.
+#
+
+ProfessionXP.RewardAtRankCap    = 0
+
+###############################################################################
+#
+#    EXPERIENCE (below the maximum level)
+#
+#    Percentages of the experience the NEXT level costs, so that the same
+#    action keeps the same weight at every level. Decimals are allowed.
+#
+#    ProfessionXP.Xp.Multiplier
+#        Applied to every reward, first-time bonus included.
+#
+#    ProfessionXP.Xp.MaxPercent
+#        Cap of a single reward, in percent of the next level, after the
+#        multiplier. A craft that is both orange and a first time is ONE reward.
+#
+
+ProfessionXP.Xp.Green           = 1.0
+ProfessionXP.Xp.Yellow          = 2.0
+ProfessionXP.Xp.Orange          = 3.0
+ProfessionXP.Xp.FirstTime       = 10.0
+ProfessionXP.Xp.Multiplier      = 1.0
+ProfessionXP.Xp.MaxPercent      = 15.0
+
+###############################################################################
+#
+#    FIRST TIME
+#
+#    Per character and per item: the entry of the item crafted or gathered,
+#    or the spell for a craft that leaves no item. Each item counts on its
+#    own: a copper vein yielding ore and a stone is two first times.
+#
+#    ProfessionXP.FirstTime.Gray
+#        0 = a gray action records its first time without paying it.
+#
+#    ProfessionXP.FirstTime.Announce
+#        A line in the chat naming the item.
+#
+
+ProfessionXP.FirstTime.Enable   = 1
+ProfessionXP.FirstTime.Gray     = 0
+ProfessionXP.FirstTime.Announce = 1
+
+###############################################################################
+#
+#    SPHERITE (at the maximum level, with mod-spheregrid)
+#
+#    Whole amounts, boosted afterwards by the account's prismatic Nexuses like
+#    every other gain of the Sphere Grid. Ignored by a server built without
+#    mod-spheregrid. For scale: a quest is worth 25 Spherite by default.
+#
+
+ProfessionXP.Spherite.Enable    = 1
+ProfessionXP.Spherite.Green     = 2
+ProfessionXP.Spherite.Yellow    = 4
+ProfessionXP.Spherite.Orange    = 6
+ProfessionXP.Spherite.FirstTime = 25
