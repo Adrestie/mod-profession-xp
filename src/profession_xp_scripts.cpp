@@ -51,8 +51,13 @@ public:
             PLAYERHOOK_ON_UPDATE_CRAFTING_SKILL,
             PLAYERHOOK_ON_UPDATE_GATHERING_SKILL,
             PLAYERHOOK_ON_UPDATE_FISHING_SKILL,
-            PLAYERHOOK_ON_LOOT_ITEM
+            PLAYERHOOK_ON_LOOT_ITEM,
+            // The profession window's requests: addon whispers to oneself.
+            PLAYERHOOK_CAN_PLAYER_USE_PRIVATE_CHAT
         }) { }
+
+    // Only the private overload is ours; the others stay the base class's.
+    using PlayerScript::OnPlayerCanUseChat;
 
     void OnPlayerLogin(Player* player) override
     {
@@ -95,6 +100,15 @@ public:
     void OnPlayerLootItem(Player* player, Item* item, uint32 /*count*/, ObjectGuid lootGuid) override
     {
         sProfessionXPMgr->OnLoot(player, item, lootGuid);
+    }
+
+    // `ProfXP<TAB>request`, whispered by the window script to its own
+    // character: answered, and swallowed. Any other whisper goes on.
+    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 language, std::string& msg, Player* receiver) override
+    {
+        if (type != CHAT_MSG_WHISPER || language != LANG_ADDON || receiver != player)
+            return true;
+        return !sProfessionXPMgr->HandleAddonMessage(player, msg);
     }
 };
 

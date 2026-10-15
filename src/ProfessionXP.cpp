@@ -31,7 +31,9 @@
 #include "QueryResult.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
+#include "StringFormat.h"
 #include "World.h"
+#include "WorldPacket.h"
 #include "WorldSession.h"
 
 #include <algorithm>
@@ -256,6 +258,127 @@ bool ProfessionXPMgr::MarkFirst(Player* player, ProfessionXPPlayerData* data, Pr
     CharacterDatabase.Execute(
         "INSERT IGNORE INTO `mod_profession_xp_character_done` (`guid`, `kind`, `entry`) VALUES ({}, {}, {})",
         player->GetGUID().GetCounter(), uint32(kind), entry);
+
+    // The profession window stops promising the bonus at once.
+    SendAddon(player, Acore::StringFormat("A\t{}:{}", uint32(kind), entry));
+    return true;
+}
+
+/*
+ * THE WINDOW SCRIPT'S PROTOCOL. Each line is one addon whisper, prefix
+ * PROFESSION_XP_ADDON_PREFIX, fields separated by tabs.
+ *
+ *   client -> server
+ *     H            hello: the texts, the settings and the done list
+ *     S            the settings alone (the window opens: level, prisms,
+ *                  experience lock and a reloaded .conf may have changed)
+ *
+ *   server -> client
+ *     T id text    one text of the window, in the client's language
+ *     C a|b|...    the settings, see SendSettings
+ *     R            the done list starts over
+ *     D k:e,k:e    a slice of the done list (kind:entry)
+ *     E            the done list is complete
+ *     A k:e        one more entry done
+ *
+ * A line stays well under the 255 characters of a chat message.
+ */
+void ProfessionXPMgr::SendAddon(Player* player, std::string const& body)
+{
+    std::string const message = Acore::StringFormat("{}\t{}", PROFESSION_XP_ADDON_PREFIX, body);
+    WorldPacket packet;
+    ChatHandler::BuildChatPacket(packet, CHAT_MSG_WHISPER, LANG_ADDON, player, player, message);
+    player->SendDirectMessage(&packet);
+}
+
+void ProfessionXPMgr::SendTexts(Player* player)
+{
+    WorldSession* session = player->GetSession();
+    for (uint32 id = PROFESSION_XP_STR_WINDOW_FIRST; id <= PROFESSION_XP_STR_WINDOW_LAST; ++id)
+    {
+        // Only the ids that exist: the localised lookup logs an error and
+        // answers "error" for the others, and the range has room to grow.
+        if (!sObjectMgr->GetModuleString(PROFESSION_XP_MODULE, id))
+            continue;
+        if (std::string const* text = session->GetModuleString(PROFESSION_XP_MODULE, id))
+            SendAddon(player, Acore::StringFormat("T\t{}\t{}", id, *text));
+    }
+}
+
+void ProfessionXPMgr::SendSettings(Player* player)
+{
+    ProfessionXPConfig const& c = _config;
+
+    // What the maximum level pays: 0 = built without mod-spheregrid, 1 = turned
+    // off in the configuration, 2 = Spherite. `boost` is what 10000 Spherite
+    // become with the account's prisms.
+    uint32 spherite = 0;
+    uint32 boost = 10000;
+#if defined(MOD_PROFESSION_XP_SPHEREGRID)
+    spherite = c.spherite ? 2 : 1;
+    boost = sSphereGridPlayerMgr->Boosted(player, 10000);
+#endif
+
+    // The order of the fields is the contract with ProfessionXP_Client.lua
+    // (function Settings); the first one is its version.
+    SendAddon(player, Acore::StringFormat(
+        "C\t1|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+        (c.enable && c.activity[PROFESSION_XP_CRAFTING]) ? 1 : 0,
+        c.rate[PROFESSION_XP_CRAFTING],
+        c.xpPercent[PROFESSION_XP_GREEN], c.xpPercent[PROFESSION_XP_YELLOW], c.xpPercent[PROFESSION_XP_ORANGE],
+        c.xpFirstTime, c.xpMultiplier, c.xpMaxPercent,
+        c.firstTime ? 1 : 0, c.firstTimeOnGray ? 1 : 0,
+        c.rewardAtRankCap ? 1 : 0, sWorld->GetConfigMaxSkillValue(),
+        sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL),
+        spherite,
+        c.spheriteAmount[PROFESSION_XP_GREEN], c.spheriteAmount[PROFESSION_XP_YELLOW],
+        c.spheriteAmount[PROFESSION_XP_ORANGE], c.spheriteFirstTime,
+        boost,
+        player->HasPlayerFlag(PLAYER_FLAGS_NO_XP_GAIN) ? 1 : 0));
+}
+
+void ProfessionXPMgr::SendDone(Player* player, ProfessionXPPlayerData const* data)
+{
+    SendAddon(player, "R");
+    std::string slice;
+    for (uint64 key : data->done)
+    {
+        std::string const entry = Acore::StringFormat("{}:{}", uint32(key >> 32), uint32(key & 0xFFFFFFFF));
+        if (slice.size() + entry.size() + 1 > 200)
+        {
+            SendAddon(player, "D\t" + slice);
+            slice.clear();
+        }
+        if (!slice.empty())
+            slice += ',';
+        slice += entry;
+    }
+    if (!slice.empty())
+        SendAddon(player, "D\t" + slice);
+    SendAddon(player, "E");
+}
+
+bool ProfessionXPMgr::HandleAddonMessage(Player* player, std::string const& message)
+{
+    std::string_view const prefix = PROFESSION_XP_ADDON_PREFIX;
+    if (message.size() <= prefix.size() || message.compare(0, prefix.size(), prefix) != 0 ||
+        message[prefix.size()] != '\t')
+        return false;
+
+    // Ours from here on, whatever happens: never echoed back as a whisper.
+    ProfessionXPPlayerData const* data = Data(player);
+    if (!data)
+        return true;
+
+    std::string_view const request = std::string_view(message).substr(prefix.size() + 1);
+    if (request == "H")
+    {
+        SendTexts(player);
+        SendSettings(player);
+        SendDone(player, data);
+    }
+    else if (request == "S")
+        SendSettings(player);
     return true;
 }
 

@@ -52,8 +52,19 @@ constexpr char PROFESSION_XP_MODULE[] = "mod-profession-xp";
 enum ProfessionXPStrings : uint32
 {
     PROFESSION_XP_STR_FIRST_CRAFT  = 1,   // {} the item, enchantment or research
-    PROFESSION_XP_STR_FIRST_GATHER = 2    // {} the item
+    PROFESSION_XP_STR_FIRST_GATHER = 2,   // {} the item
+
+    // 101 to 199: the texts of the profession window, sent to the client in
+    // its language (data/lua/ProfessionXP/ProfessionXP_Client.lua names them).
+    PROFESSION_XP_STR_WINDOW_FIRST = 101,
+    PROFESSION_XP_STR_WINDOW_LAST  = 199
 };
+
+// THE ADDON CHANNEL between this module and its window script. The client
+// whispers itself `ProfXP<TAB>request`, the module answers with addon
+// whispers carrying the same prefix. The format is documented with
+// ProfessionXPMgr::HandleAddonMessage.
+constexpr char PROFESSION_XP_ADDON_PREFIX[] = "ProfXP";
 
 // The colour of an action, in the order of its worth. The values index the
 // reward tables of the configuration.
@@ -146,6 +157,10 @@ public:
     void OnFish(Player* player, int32 skill, int32 zoneSkill, int32 chance, int32 roll);
     void OnLoot(Player* player, Item* item, ObjectGuid lootGuid);
 
+    // A request of the window script (the text after the prefix). False when
+    // the message is not ours and must go on as a normal whisper.
+    bool HandleAddonMessage(Player* player, std::string const& message);
+
 private:
     ProfessionXPMgr() = default;
 
@@ -159,6 +174,12 @@ private:
     // maximum level. Both already include the activity rate.
     void Grant(Player* player, float percent, uint32 spherite);
     void Announce(Player* player, uint32 text, ProfessionXPKind kind, uint32 entry);
+
+    // The window script's data: an addon whisper per line.
+    static void SendAddon(Player* player, std::string const& body);
+    void SendTexts(Player* player);
+    void SendSettings(Player* player);
+    void SendDone(Player* player, ProfessionXPPlayerData const* data);
 
     ProfessionXPConfig _config;
 };

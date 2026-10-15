@@ -13,8 +13,12 @@ gathering.
   [mod-spheregrid](https://github.com/Adrestie/mod-spheregrid). Without it the
   module still builds and runs, and gives nothing at the maximum level.
 
-No client patch, no Lua, no new identifiers: the module only uses core hooks,
-one characters table and two text strings.
+The profession window shows what the selected recipe pays, and grays out, with
+the reason in the client's language, what the player will not get. It works in
+the game's own window and in [ForeverUI](https://github.com/Adrestie/mod-forever-ui)'s.
+
+No client patch and no new identifiers: core hooks, one characters table, texts
+in `module_string`, and one client script shipped by AIO for the window.
 
 ## What counts
 
@@ -69,6 +73,35 @@ default.
 Everything is set in `conf/mod-profession-xp.conf.dist`, and `.reload config`
 applies changes.
 
+## The profession window
+
+Under the selected recipe's description, above its reagents:
+
+* **Profession reward**, then **Crafting: N XP** in the recipe's colour (or
+  **N Spherite** at the maximum level, prisms included);
+* **First time: +N XP**, in green while the bonus is still to be earned;
+* **At most N per craft** when the capped total is lower than the sum.
+
+A line the player will not get is gray, with the reason under it: gray recipe,
+skill at the cap of its rank, already made, gray recipe with no first-time
+bonus, first-time bonuses off, crafting rewards off, experience gain turned off
+for the character, nothing at the maximum level (built without mod-spheregrid),
+Spherite off. Nothing is shown for a profession linked by another player.
+
+The texts come from `module_string` (ids 101 to 118) in the client's language:
+English, French, German, Spanish (both) and Russian, English for the others.
+
+**How it works.** `data/lua/ProfessionXP/ProfessionXP_Client.lua` is sent to
+the client by AIO, like the Sphere Grid's window. It talks to the C++ module
+directly over an addon whisper (prefix `ProfXP`). The module sends the
+settings, the texts and the list of what the character already made, and
+pushes each new first time as it happens. The client works out each line with
+the same rules as the server. In ForeverUI the lines are added to its recipe
+card; ForeverUI itself is not modified.
+
+Without ALE and AIO on the server, rewards work the same and the window shows
+nothing.
+
 ## Installation
 
 With the WoW-mods installer: point it at this folder. By hand:
@@ -83,6 +116,9 @@ With the WoW-mods installer: point it at this folder. By hand:
    again safely.
 3. Copy `conf/mod-profession-xp.conf.dist` to the server's `configs/modules`
    folder as `mod-profession-xp.conf`.
+4. For the profession window: copy `data/lua/ProfessionXP` into the ALE
+   scripts folder (`lua_scripts/ProfessionXP`). It needs ALE and AIO, as the
+   Sphere Grid's window does.
 
 ## In-game tests
 
@@ -140,6 +176,42 @@ Use a test character below the maximum level unless stated otherwise. Run
     `Première fabrication de « … »`, with the item's French name.
 19. **Experience locked:** a character with experience gain turned off (the
     Warsong Gulch trainer option) gets nothing below the maximum level.
+
+### The profession window
+
+Test each step in the game's own window, then again with ForeverUI installed.
+
+20. **Lines:** open a profession and select an orange recipe never made. Under
+    the description: `Profession reward`, `Crafting: N XP` in orange, and
+    `First time: +N XP` in green. N matches what crafting it actually gives
+    (3% and 10% of the level by default).
+21. **Colours:** a yellow recipe shows yellow, a green one green. A gray recipe
+    shows `Crafting: 0 XP` grayed with `Gray recipes earn nothing.`, and a
+    grayed first-time line with `A gray recipe earns no first-time bonus.`.
+22. **After a first craft:** craft the orange recipe. Without closing the
+    window, its first-time line turns gray with `Already made: …`.
+23. **Rank cap:** at 75/75 before training, a yellow recipe shows its crafting
+    line grayed with the rank cap reason; the first-time line stays green.
+24. **Cap:** with `ProfessionXP.Xp.Multiplier = 5` and `.reload config`, reopen
+    the window: `At most N XP per craft.` appears under an orange first time.
+25. **Switches:** `ProfessionXP.Crafting.Enable = 0`: both lines grayed, with
+    `Crafting rewards are turned off on this server.`.
+    `ProfessionXP.FirstTime.Enable = 0`: the first-time line grayed with its
+    reason.
+26. **Experience locked:** with experience gain turned off, both lines are
+    grayed, with the reason.
+27. **Maximum level:** on a level 80 character with mod-spheregrid, amounts
+    read `N Spherite`, boosted by the account's prisms. Without mod-spheregrid,
+    lines are grayed with `Nothing is earned at the maximum level on this
+    server.`.
+28. **Language:** on a French client, every line and reason is in French.
+29. **Layout:** reagents stay below the block and the stock window can still
+    scroll down to the last reagent. In ForeverUI, the block sits between the
+    description and the reagents of the recipe card.
+30. **Linked profession:** open another player's profession link. No reward
+    block is shown.
+31. **Without AIO:** remove `lua_scripts/ProfessionXP`. The window is the same
+    as before the module, and rewards are still given.
 
 ## Licence
 
