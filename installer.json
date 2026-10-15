@@ -1,0 +1,27 @@
+{
+  "format": "wow-mods-installer/1",
+  "module": "mod-profession-xp",
+  "title": "Profession XP",
+  "fields": {"worldserver": "required", "sources": "required", "mysql": "required"},
+  "signature": ["src/profession_xp_loader.cpp", "src/ProfessionXP.cpp"],
+  "configuration": {
+    "file": "mod-profession-xp.conf",
+    "template": "conf/mod-profession-xp.conf.dist"
+  },
+  "database": {
+    "characters": {
+      "tables": ["mod_profession_xp_character_done"],
+      "kept_on_update": ["mod_profession_xp_character_done"],
+      "rows": [
+        { "table": "updates", "where": "name IN ({sql_files:characters})" }
+      ]
+    },
+    "world": {
+      "rows": [
+        { "table": "module_string", "where": "module = 'mod-profession-xp'" },
+        { "table": "module_string_locale", "where": "module = 'mod-profession-xp'" },
+        { "table": "updates", "where": "name IN ({sql_files:world})" }
+      ]
+    }
+  }
+}
