@@ -109,6 +109,17 @@ card; ForeverUI itself is not modified.
 Without ALE and AIO on the server, rewards work the same and the window shows
 nothing.
 
+## Requirements
+
+| | |
+|---|---|
+| [AzerothCore](https://github.com/azerothcore/azerothcore-wotlk) | 3.3.5a, built with the module in `modules/` |
+| [ALE](https://github.com/azerothcore/mod-ale) (the AzerothCore Lua Engine, formerly mod-eluna) | for the profession window only: runs `data/lua/ProfessionXP` |
+| [AIO](https://github.com/Rochet2/AIO) | for the profession window only: server AND client, the window is sent over it |
+| [mod-spheregrid](https://github.com/Adrestie/mod-spheregrid) | optional: the Spherite reward at maximum level |
+
+Without ALE and AIO, rewards work the same and the window shows nothing.
+
 ## Installation
 
 With the WoW-mods installer: point it at this folder. By hand:
